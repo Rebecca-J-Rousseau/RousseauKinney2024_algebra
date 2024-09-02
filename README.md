@@ -9,11 +9,11 @@ The repository is organized into three directories:
 ## `simulationcode`
 This directory contains all Jupyter notebooks used to simulate each example system:
 
-1. Deterministic simulations (in small N regime)
-    * Monomer (N = 20)
-    * Homodimer (N = 4)
-    * Homopolymer (N = 3)
-2. Stochastic simulations (N = 100 large N regime)
+1. Deterministic simulations
+    * Monomer
+    * Homodimer
+    * Homopolymer
+2. Stochastic simulations
     * Monomer
     * Homodimer
     * Homopolymer

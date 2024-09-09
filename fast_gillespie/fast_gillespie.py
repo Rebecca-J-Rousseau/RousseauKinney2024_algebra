@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import time
+from tqdm.notebook import tqdm
 from collections.abc import Iterable
 
 
@@ -25,7 +26,7 @@ class Simulation:
     def run(self, num_steps, record_every=1):
         # Perform Gillespie steps
         num_rules = len(self.rules.rules)
-        for step_num in range(num_steps):
+        for step_num in tqdm(range(num_steps), desc="Progress"):
 
             # For recording performance
             rest_start_time = time.perf_counter()
@@ -188,12 +189,12 @@ class FieldOp:
                 if not index in self.field.indices:
                     self.field.excite(index)
                 else:
-                    assert False, f'Applying index {index} kills state.'
+                    assert False, f'Applying {self.name} with index {index} kills state.'
             case 'check':
                 if index in self.field.indices:
                     self.field.relax(index)
                 else:
-                    assert False, f'Applying index {index} kills state.'
+                    assert False, f'Applying {self.name} with index {index} kills state.'
             case 'bar':
                 assert index in self.field.indices, \
                     f'Applying {self.name} with index {index} kills state.'
@@ -278,22 +279,27 @@ class Rule:
 
 
 class MonomerCreationRule(Rule):
-    def __init__(self, name, rate, particle, sites):
+    def __init__(self, name, rate, particle, sites=None):
         self.particle = particle
         self.sites = sites
+        field_ops = [FieldOp(field=particle, op_type='hat')]
+        if self.sites is not None:
+            field_ops += [FieldOp(field=site, op_type='tilde') for
+                          site in self.sites]
+
         super().__init__(name=name,
                          rate=rate,
-                         field_ops=[FieldOp(field=particle, op_type='hat')] + \
-                                   [FieldOp(field=site, op_type='tilde') for
-                                    site in self.sites],
+                         field_ops=field_ops,
                          index_dim=1,
-                         index_spec=[0] * (1 + len(self.sites)))
+                         index_spec=[0] * len(field_ops))
 
     def compute_eligible_indices(self):
-        # Get set of indices for the particle field as well as all site fiels
-        field_indices_sets = [set(i[0] for i in self.particle.indices)] + \
-                             [set(i[0] for i in site.indices) for site in
-                              self.sites]
+
+        # Get set of indices for the particle field as well as all site fields
+        field_indices_sets = [set(i[0] for i in self.particle.indices)]
+        if self.sites is not None:
+            field_indices_sets += [set(i[0] for i in site.indices) for site in
+                                   self.sites]
 
         # The union of these indices is the set of inelligible indices
         inelligible_indices = set.union(*field_indices_sets)
@@ -311,27 +317,31 @@ class MonomerCreationRule(Rule):
 
 
 class MonomerAnnihilationRule(Rule):
-    def __init__(self, name, rate, particle, sites):
+    def __init__(self, name, rate, particle, sites=None):
         self.particle = particle
         self.sites = sites
+        field_ops = [FieldOp(field=particle, op_type='check')]
+        if self.sites is not None:
+            field_ops += [FieldOp(field=site, op_type='tilde') for
+                          site in self.sites]
+
         super().__init__(name=name,
                          rate=rate,
-                         field_ops=[FieldOp(field=particle, op_type='check')] + \
-                                   [FieldOp(field=site, op_type='tilde') for
-                                    site in self.sites],
+                         field_ops=field_ops,
                          index_dim=1,
-                         index_spec=[0] * (1 + len(self.sites)))
+                         index_spec=[0] * len(field_ops))
 
     def compute_eligible_indices(self):
         # Get set of indices for the particle
-        particle_indices = set(i[0] for i in self.particle.indices)
+        eligible_indices = set(i[0] for i in self.particle.indices)
 
-        # Get list of sets of indices for all sites
-        site_indices_sets = [set(i[0] for i in site.indices) for site in
-                             self.sites]
+        # Subtract indices corresponding to excited sites
+        if self.sites is not None:
+            site_indices_sets = [set(i[0] for i in site.indices) for site in
+                                 self.sites]
+            eligible_indices -= set.union(*site_indices_sets)
 
         # Eligible indices are the particle indices that do not have any excited site indices
-        eligible_indices = particle_indices - set.union(*site_indices_sets)
         self.num_eligible_indices = len(eligible_indices)
 
         # Compute eligible_rate and select eligible_index

@@ -23,19 +23,22 @@ def color_connected_components(G):
     return [color_map[node] for node in G.nodes()]
 
 
-def plot_state(ax, particle, interaction, directed=True, k=0.2, node_size=30):
+def plot_state(ax, particle, interaction=None, directed=True, k=0.2, node_size=30):
     # Create a graph
     G = nx.DiGraph()
 
-    # Add connected nodes
-    G.add_edges_from(interaction.indices)
-
-    # Add monomer nodes
-    particle_field_indices = set(i[0] for i in particle.indices)
-    interaction_indices = set(i[0] for i in interaction.indices) | set(
-        i[1] for i in interaction.indices)
-    monomer_indices = particle_field_indices - interaction_indices
-    G.add_nodes_from(monomer_indices)
+    # Add connected nodes if interaction is included
+    if interaction is not None:
+        G.add_edges_from(interaction.indices)
+        # Add monomer nodes
+        particle_field_indices = set(i[0] for i in particle.indices)
+        interaction_indices = set(i[0] for i in interaction.indices) | set(
+            i[1] for i in interaction.indices)
+        monomer_indices = particle_field_indices - interaction_indices
+        G.add_nodes_from(monomer_indices)
+    else:
+        particle_indices = set(i[0] for i in particle.indices)
+        G.add_nodes_from(particle_indices)
 
     # Use spring_layout with custom parameters
     pos = nx.spring_layout(G, k=k, iterations=50)
@@ -84,7 +87,7 @@ def show_sim_stats(sim,
     fig = plt.figure(figsize=figsize)
 
     # Create a GridSpec with 2 rows and 2 columns
-    gs = gridspec.GridSpec(4, 2)
+    gs = gridspec.GridSpec(3, 2)
 
     ax = fig.add_subplot(gs[:, 0])
     plot_state(ax=ax,
@@ -98,37 +101,36 @@ def show_sim_stats(sim,
 
     # Plot user-specified stats
     ax = fig.add_subplot(gs[0, 1])
+    max_stat_val = 0
     for stat_name, stat_vals in custom_stat_dict.items():
         ax.plot(x, stat_vals, label=stat_name)
+        max_stat_val = max(max_stat_val, np.max(stat_vals))
     ax.set_xlim(0, xmax)
+    ax.set_ylim(0, max_stat_val * 1.2)
     ax.set_ylabel('number')
     ax.legend(loc='upper right')
 
     # Plot eligible rates
     ax = fig.add_subplot(gs[1, 1])
-    for i in range(4):
+    for i in range(eligible_rates.shape[1]):
         ax.plot(x, eligible_rates[:, i], label=sim.rules.rules[i].name)
     ax.set_xlim(0, xmax)
+    ax.set_ylim(0, np.max(np.ravel(eligible_rates)) * 1.2)
     ax.set_ylabel('eligible rate')
     ax.legend(loc='upper right')
 
-    # Plot number of eligible indices
-    ax = fig.add_subplot(gs[2, 1])
-    for i in range(4):
-        ax.semilogy(x, num_eligible_indices[:, i], label=sim.rules.rules[i].name)
-    ax.set_xlim(0, xmax)
-    ax.set_ylabel('num eligible indices')
-    ax.legend(loc='upper right')
+    # # Plot number of eligible indices
+    # ax = fig.add_subplot(gs[2, 1])
+    # for i in range(num_eligible_indices.shape[1]):
+    #     ax.semilogy(x, num_eligible_indices[:, i], label=sim.rules.rules[i].name)
+    # ax.set_xlim(0, xmax)
+    # finite_mask = np.isfinite(num_eligible_indices)
+    # ax.set_ylim(0, np.max(np.ravel(finite_mask*num_eligible_indices)) * 1.2)
+    # ax.set_ylabel('num eligible indices')
+    # ax.legend(loc='upper right')
 
     # Plot compute time
-    ax = fig.add_subplot(gs[3, 1])
-
-    # # Set the y-axis tick labels to use scientific notation
-    # formatter = ScalarFormatter(useMathText=True)
-    # formatter.set_scientific(True)
-    # formatter.set_powerlimits((-2, 2))  # Adjust these limits as needed
-    # ax.yaxis.set_major_formatter(formatter)
-
+    ax = fig.add_subplot(gs[2, 1])
     ax.plot(x, 1E6*update_duration, label='rules.update_eligibility()')
     ax.plot(x, 1E6*rest_duration, label='rest of gillespie loop')
     ax.legend(loc='upper right')

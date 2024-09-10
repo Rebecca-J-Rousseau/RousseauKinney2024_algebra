@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import ScalarFormatter
+from networkx import connected_components
 
 
 def color_connected_components(G):
@@ -29,6 +30,7 @@ def plot_state(particle,
                k=0.2,
                node_size=30,
                system_name=None,
+               max_connected_components=50,
                figsize=(8,8)):
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -49,11 +51,23 @@ def plot_state(particle,
         particle_indices = set(i[0] for i in particle.indices)
         G.add_nodes_from(particle_indices)
 
+    # Create subG from a subset of the connected components of G
+    connected_components = list(nx.weakly_connected_components(G))
+    num_components = int(min(len(connected_components), max_connected_components))
+    sub_components = np.random.choice(connected_components, num_components, replace=False)
+    print(sub_components)
+    subG = nx.DiGraph()
+    for component in sub_components:
+        edges = G.subgraph(component).edges
+        nodes = G.subgraph(component).nodes
+        subG.add_edges_from(edges)
+        subG.add_nodes_from(nodes)
+
     # Use spring_layout with custom parameters
-    pos = nx.spring_layout(G, k=k, iterations=50)
+    pos = nx.spring_layout(subG, k=k, iterations=100)
 
     # Get colors for nodes based on their connected component
-    node_colors = color_connected_components(G)
+    node_colors = color_connected_components(subG)
 
     # Draw the graph
     if directed:
@@ -61,12 +75,13 @@ def plot_state(particle,
     else:
         arrowstyle = '-'
 
-    nx.draw(G, pos, with_labels=False, node_color=node_colors,
+    # Draw graph
+    nx.draw(subG, pos, with_labels=False, node_color=node_colors,
             node_size=node_size, arrowstyle=arrowstyle, ax=ax)
 
     if system_name is None:
         system_name = 'the'
-    ax.set_title(f'Final state of {system_name} system')
+    ax.set_title(f'{system_name} system, {len(sub_components)} of {len(connected_components)} complexes shown')
 
 # def plot_state_v2(ax,
 #                particles,
@@ -158,12 +173,11 @@ def show_sim_stats(sim, x_is_time=False, figsize=(8, 8)):
 
     # Plot user-specified stats
     ax = fig.add_subplot(gs[0, 0])
-    max_stat_val = 0
     for stat_name, stat_vals in custom_stat_dict.items():
         ax.plot(x, stat_vals, label=stat_name)
-        max_stat_val = max(max_stat_val, np.max(stat_vals))
     ax.set_xlim(0, xmax)
-    ax.set_ylim(0, max_stat_val * 1.2)
+    _, upper_lim = ax.get_ylim()
+    ax.set_ylim(bottom=0, top=upper_lim)
     ax.set_ylabel('number')
     ax.legend(loc='upper right')
 

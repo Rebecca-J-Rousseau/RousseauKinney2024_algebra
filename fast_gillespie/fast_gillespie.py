@@ -412,65 +412,205 @@ class HomotypicInteractionAnnihilationRule(Rule):
             self.eligible_index = None
 
 
+# class HeterotypicInteractionCreationRule(Rule):
+#     def __init__(self, name, rate, A, B, a, b, J):
+#         self.A = A
+#         self.B = B
+#         self.a = a
+#         self.b = b
+#         self.J = J
+#         A_bar = FieldOp(field=A, op_type='bar')
+#         B_bar = FieldOp(field=B, op_type='bar')
+#         a_hat = FieldOp(field=a, op_type='hat')
+#         b_hat = FieldOp(field=b, op_type='hat')
+#         J_hat = FieldOp(field=J, op_type='hat')
+#         super().__init__(name=name,
+#                          rate=rate,
+#                          field_ops=(A_bar, B_bar, a_hat, b_hat, J_hat),
+#                          index_dim=2,
+#                          index_spec=(0,1,0,1,(0,1)))
+#
+#     def compute_eligible_indices(self):
+#         # Compute eligible rate
+#         monomer_A_indices = self.A.indices - self.a.indices
+#         monomer_B_indices = self.B.indices - self.b.indices
+#         self.num_eligible_indices = len(monomer_A_indices) * len(monomer_B_indices)
+#         self.eligible_rate = self.rate * self.num_eligible_indices
+#
+#         # Choose eligible index
+#         if self.num_eligible_indices > 0:
+#             i = random.choice(list(monomer_A_indices))
+#             j = random.choice(list(monomer_B_indices))
+#             self.eligible_index = (i[0],j[0])
+#         else:
+#             self.eligible_index = None
+#
+#
+# class HeterotypicInteractionAnnihilationRule(Rule):
+#     def __init__(self, name, rate, A, B, a, b, J):
+#         self.A = A
+#         self.B = B
+#         self.a = a
+#         self.b = b
+#         self.J = J
+#         A_bar = FieldOp(field=A, op_type='bar')
+#         B_bar = FieldOp(field=B, op_type='bar')
+#         a_check = FieldOp(field=a, op_type='check')
+#         b_check = FieldOp(field=b, op_type='check')
+#         J_check = FieldOp(field=J, op_type='check')
+#         super().__init__(name=name,
+#                          rate=rate,
+#                          field_ops=(A_bar, B_bar, a_check, b_check, J_check),
+#                          index_dim=2,
+#                          index_spec=(0,1,0,1,(0,1)))
+#
+#     def compute_eligible_indices(self):
+#         # Compute eligible rate
+#         self.num_eligible_indices = len(self.J.indices)
+#         self.eligible_rate = self.rate * self.num_eligible_indices
+#
+#         # Choose eligible index
+#         if self.num_eligible_indices > 0:
+#             self.eligible_index = random.choice(list(self.J.indices))
+#         else:
+#             self.eligible_index = None
+
+
+
 class HeterotypicInteractionCreationRule(Rule):
-    def __init__(self, name, rate, A, B, a, b, J):
+    def __init__(self, name, rate, A, B, a, b, J,
+                 A_sites_vacant=(), A_sites_occupied=(),
+                 B_sites_vacant=(), B_sites_occupied=()):
         self.A = A
         self.B = B
         self.a = a
         self.b = b
         self.J = J
+        self.A_sites_vacant = A_sites_vacant
+        self.A_sites_occupied = A_sites_occupied
+        self.B_sites_vacant = B_sites_vacant
+        self.B_sites_occupied = B_sites_occupied
         A_bar = FieldOp(field=A, op_type='bar')
         B_bar = FieldOp(field=B, op_type='bar')
         a_hat = FieldOp(field=a, op_type='hat')
         b_hat = FieldOp(field=b, op_type='hat')
         J_hat = FieldOp(field=J, op_type='hat')
+
+        A_sites_vacant_ops = [FieldOp(field=c, op_type='tilde') for c in A_sites_vacant]
+        A_sites_occupied_ops = [FieldOp(field=c, op_type='bar') for c in A_sites_occupied]
+        A_conditional_spec = [0] * (len(A_sites_vacant) + len(A_sites_occupied))
+
+        B_sites_vacant_ops = [FieldOp(field=c, op_type='tilde') for c in B_sites_vacant]
+        B_sites_occupied_ops = [FieldOp(field=c, op_type='bar') for c in B_sites_occupied]
+        B_conditional_spec = [1] * (len(B_sites_vacant) + len(B_sites_occupied))
+
+        field_ops = [A_bar, B_bar, a_hat, b_hat, J_hat] \
+                    + A_sites_vacant_ops + A_sites_occupied_ops \
+                    + B_sites_vacant_ops + B_sites_occupied_ops
+        index_spec = [0,1,0,1,(0,1)] \
+                     + A_conditional_spec \
+                     + B_conditional_spec
+
         super().__init__(name=name,
                          rate=rate,
-                         field_ops=(A_bar, B_bar, a_hat, b_hat, J_hat),
+                         field_ops=field_ops,
                          index_dim=2,
-                         index_spec=(0,1,0,1,(0,1)))
+                         index_spec=index_spec)
 
     def compute_eligible_indices(self):
         # Compute eligible rate
-        monomer_A_indices = self.A.indices - self.a.indices
-        monomer_B_indices = self.B.indices - self.b.indices
-        self.num_eligible_indices = len(monomer_A_indices) * len(monomer_B_indices)
+        eligible_A_indices = self.A.indices - self.a.indices
+        for site in self.A_sites_vacant:
+            eligible_A_indices = eligible_A_indices - site.indices
+        for site in self.A_sites_occupied:
+            eligible_A_indices = eligible_A_indices & site.indices
+
+        eligible_B_indices = self.B.indices - self.b.indices
+        for site in self.B_sites_vacant:
+            eligible_B_indices = eligible_B_indices - site.indices
+        for site in self.B_sites_occupied:
+            eligible_B_indices = eligible_B_indices & site.indices
+
+        self.num_eligible_indices = len(eligible_A_indices) * len(eligible_B_indices)
         self.eligible_rate = self.rate * self.num_eligible_indices
 
         # Choose eligible index
         if self.num_eligible_indices > 0:
-            i = random.choice(list(monomer_A_indices))
-            j = random.choice(list(monomer_B_indices))
+            i = random.choice(list(eligible_A_indices))
+            j = random.choice(list(eligible_B_indices))
             self.eligible_index = (i[0],j[0])
         else:
             self.eligible_index = None
 
 
 class HeterotypicInteractionAnnihilationRule(Rule):
-    def __init__(self, name, rate, A, B, a, b, J):
+    def __init__(self, name, rate, A, B, a, b, J,
+                 A_sites_vacant=(), A_sites_occupied=(),
+                 B_sites_vacant=(), B_sites_occupied=()):
         self.A = A
         self.B = B
         self.a = a
         self.b = b
         self.J = J
+        self.A_sites_vacant = A_sites_vacant
+        self.A_sites_occupied = A_sites_occupied
+        self.B_sites_vacant = B_sites_vacant
+        self.B_sites_occupied = B_sites_occupied
         A_bar = FieldOp(field=A, op_type='bar')
         B_bar = FieldOp(field=B, op_type='bar')
         a_check = FieldOp(field=a, op_type='check')
         b_check = FieldOp(field=b, op_type='check')
         J_check = FieldOp(field=J, op_type='check')
+
+        A_sites_vacant_ops = [FieldOp(field=c, op_type='tilde') for c in A_sites_vacant]
+        A_sites_occupied_ops = [FieldOp(field=c, op_type='bar') for c in A_sites_occupied]
+        A_conditional_spec = [0] * (len(A_sites_vacant) + len(A_sites_occupied))
+
+        B_sites_vacant_ops = [FieldOp(field=c, op_type='tilde') for c in B_sites_vacant]
+        B_sites_occupied_ops = [FieldOp(field=c, op_type='bar') for c in B_sites_occupied]
+        B_conditional_spec = [1] * (len(B_sites_vacant) + len(B_sites_occupied))
+
+        field_ops = [A_bar, B_bar, a_check, b_check, J_check] \
+                    + A_sites_vacant_ops + A_sites_occupied_ops \
+                    + B_sites_vacant_ops + B_sites_occupied_ops
+        index_spec = [0,1,0,1,(0,1)] \
+                     + A_conditional_spec \
+                     + B_conditional_spec
+
         super().__init__(name=name,
                          rate=rate,
-                         field_ops=(A_bar, B_bar, a_check, b_check, J_check),
+                         field_ops=field_ops,
                          index_dim=2,
-                         index_spec=(0,1,0,1,(0,1)))
+                         index_spec=index_spec)
 
     def compute_eligible_indices(self):
+        # Compute eligible A indices
+        eligible_A_indices = self.A.indices & self.a.indices
+        for site in self.A_sites_vacant:
+            eligible_A_indices = eligible_A_indices - site.indices
+        for site in self.A_sites_occupied:
+            eligible_A_indices = eligible_A_indices & site.indices
+
+        # Comput eligible B indices
+        eligible_B_indices = self.B.indices & self.b.indices
+        for site in self.B_sites_vacant:
+            eligible_B_indices = eligible_B_indices - site.indices
+        for site in self.B_sites_occupied:
+            eligible_B_indices = eligible_B_indices & site.indices
+
+        # Compute eligible index pairs
+        eligible_indices = set([])
+        for i,j in self.J.indices:
+            if (i,) in eligible_A_indices and (j,) in eligible_B_indices:
+                eligible_indices.add((i,j))
+        self.eligible_indices = eligible_indices
+        self.num_eligible_indices = len(eligible_indices)
+
         # Compute eligible rate
-        self.num_eligible_indices = len(self.J.indices)
         self.eligible_rate = self.rate * self.num_eligible_indices
 
         # Choose eligible index
         if self.num_eligible_indices > 0:
-            self.eligible_index = random.choice(list(self.J.indices))
+            self.eligible_index = random.choice(list(eligible_indices))
         else:
             self.eligible_index = None

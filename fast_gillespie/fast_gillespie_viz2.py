@@ -23,7 +23,16 @@ def color_connected_components(G):
     return [color_map[node] for node in G.nodes()]
 
 
-def plot_state(ax, particle, interaction=None, directed=True, k=0.2, node_size=30):
+def plot_state(particle,
+               interaction=None,
+               directed=True,
+               k=0.2,
+               node_size=30,
+               system_name=None,
+               figsize=(8,8)):
+
+    fig, ax = plt.subplots(figsize=figsize)
+
     # Create a graph
     G = nx.DiGraph()
 
@@ -54,6 +63,10 @@ def plot_state(ax, particle, interaction=None, directed=True, k=0.2, node_size=3
 
     nx.draw(G, pos, with_labels=False, node_color=node_colors,
             node_size=node_size, arrowstyle=arrowstyle, ax=ax)
+
+    if system_name is None:
+        system_name = 'the'
+    ax.set_title(f'Final state of {system_name} system')
 
 # def plot_state_v2(ax,
 #                particles,
@@ -113,11 +126,7 @@ def plot_state(ax, particle, interaction=None, directed=True, k=0.2, node_size=3
 #                                width=2)
 
 
-def show_sim_stats(sim,
-                   particle,
-                   interaction=None,
-                   directed=True,
-                   x_is_time=False, system_name=None, figsize=(16, 8)):
+def show_sim_stats(sim, x_is_time=False, figsize=(8, 8)):
 
     step_num = np.array([d["step_num"] for d in sim.step_info])
     rule_num = np.array([d["rule_num"] for d in sim.step_info])
@@ -145,20 +154,10 @@ def show_sim_stats(sim,
     fig = plt.figure(figsize=figsize)
 
     # Create a GridSpec with 2 rows and 2 columns
-    gs = gridspec.GridSpec(3, 2)
-
-    ax = fig.add_subplot(gs[:, 0])
-    plot_state(ax=ax,
-               particle=particle,
-               interaction=interaction,
-               directed=directed,
-               k=0.2, node_size=30)
-    if system_name is None:
-        system_name = 'System'
-    ax.set_title(f"{system_name} after {sim.num_steps:,d} steps")
+    gs = gridspec.GridSpec(3, 1)
 
     # Plot user-specified stats
-    ax = fig.add_subplot(gs[0, 1])
+    ax = fig.add_subplot(gs[0, 0])
     max_stat_val = 0
     for stat_name, stat_vals in custom_stat_dict.items():
         ax.plot(x, stat_vals, label=stat_name)
@@ -169,7 +168,7 @@ def show_sim_stats(sim,
     ax.legend(loc='upper right')
 
     # Plot eligible rates
-    ax = fig.add_subplot(gs[1, 1])
+    ax = fig.add_subplot(gs[1, 0])
     for i in range(eligible_rates.shape[1]):
         ax.plot(x, eligible_rates[:, i], label=sim.rules.rules[i].name)
     ax.set_xlim(0, xmax)
@@ -178,7 +177,7 @@ def show_sim_stats(sim,
     ax.legend(loc='upper right')
 
     # Plot compute time
-    ax = fig.add_subplot(gs[2, 1])
+    ax = fig.add_subplot(gs[2, 0])
     ax.plot(x, 1E6*update_duration, label='rules.update_eligibility()')
     ax.plot(x, 1E6*rest_duration, label='rest of gillespie loop')
     ax.legend(loc='upper right')

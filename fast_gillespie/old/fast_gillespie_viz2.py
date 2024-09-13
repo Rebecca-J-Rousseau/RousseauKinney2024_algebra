@@ -4,6 +4,140 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import ScalarFormatter
 from networkx import connected_components
+import random
+
+
+# Visualize the complexes
+def visualize_complexes(nodes,
+                        edges,
+                        node_properties,
+                        edge_properties,
+                        max_components=None,
+                        figsize=(8, 8)):
+    # Create a new graph
+    G = nx.DiGraph()
+
+    # Add nodes with their classes
+    G.add_nodes_from(nodes.keys())
+    nx.set_node_attributes(G, nodes, 'class')
+
+    # Add edges with their classes
+    G.add_edges_from((u, v) for u, v, _ in edges)
+    nx.set_edge_attributes(G, {(u, v): {'class': t} for u, v, t in edges})
+
+    # Get weakly connected components
+    components = list(nx.weakly_connected_components(G))
+
+    # Limit the number of components if specified
+    if max_components is not None and max_components < len(components):
+        selected_components = random.sample(components, max_components)
+        nodes_to_keep = set().union(*selected_components)
+        G = G.subgraph(nodes_to_keep).copy()
+
+    # Set up the plot
+    plt.figure(figsize=figsize)
+    #pos = nx.spring_layout(G)
+    pos = nx.multipartite_layout(G)
+
+    # Draw nodes
+    for node_class, props in node_properties.items():
+        node_list = [node for node, data in G.nodes(data=True) if
+                     data['class'] == node_class]
+        nx.draw_networkx_nodes(G, pos, nodelist=node_list, **props)
+        nx.draw_networkx_nodes(G, pos, nodelist=node_list, **props)
+
+    # Draw edges
+    for edge_class, props in edge_properties.items():
+        edge_list = [(u, v) for (u, v, d) in G.edges(data=True) if
+                     d['class'] == edge_class]
+        nx.draw_networkx_edges(G, pos, edgelist=edge_list, **props)
+
+    # Remove axis
+    plt.axis('off')
+
+    # Show the plot
+    plt.tight_layout()
+    plt.show()
+
+
+# def visualize_network(nodes, edges, node_shapes, node_colors, edge_colors,
+#                       edge_styles, max_components=None, figsize=(8, 8),
+#                       k=0.2, node_size=30, arrowsize=10):
+#     # Create a new graph
+#     G = nx.DiGraph()
+#
+#     # Add nodes with different classes
+#     G.add_nodes_from(nodes.keys())
+#     nx.set_node_attributes(G, nodes, 'class')
+#
+#     # Add edges with different classes
+#     G.add_edges_from((u, v) for u, v, _ in edges)
+#     nx.set_edge_attributes(G, {(u, v): {'type': t} for u, v, t in edges})
+#
+#     # Get weakly connected components
+#     components = list(nx.weakly_connected_components(G))
+#
+#     # Limit the number of components if specified
+#     if max_components is not None and max_components < len(components):
+#         selected_components = random.sample(components, max_components)
+#         nodes_to_keep = set().union(*selected_components)
+#         G = G.subgraph(nodes_to_keep).copy()
+#
+#     # Set up the plot
+#     plt.figure(figsize=figsize)
+#     pos = nx.spring_layout(G, k=k)
+#
+#     # Draw nodes
+#     for node_class, shape in node_shapes.items():
+#         node_list = [node for node, data in G.nodes(data=True) if
+#                      data['class'] == node_class]
+#         nx.draw_networkx_nodes(G, pos, nodelist=node_list,
+#                                node_color=node_colors[node_class],
+#                                node_shape=shape, node_size=50)
+#
+#     # Draw edges
+#     for edge_type, color in edge_colors.items():
+#         edge_list = [(u, v) for (u, v, d) in G.edges(data=True) if
+#                      d['type'] == edge_type]
+#         nx.draw_networkx_edges(G, pos,
+#                                edgelist=edge_list,
+#                                edge_color=color,
+#                                width=2,
+#                                arrowstyle=edge_styles[edge_type],
+#                                arrowsize=arrowsize)
+#
+#     # Remove axis
+#     plt.axis('off')
+#
+#     # Show the plot
+#     plt.tight_layout()
+#     plt.show()
+
+
+# # Example usage:
+# if __name__ == "__main__":
+#     # Define nodes
+#     nodes = {
+#         'A': 'class1', 'B': 'class1', 'C': 'class2', 'D': 'class2',
+#         'E': 'class3', 'F': 'class3', 'G': 'class1', 'H': 'class2',
+#         'I': 'class3', 'J': 'class1', 'K': 'class2', 'L': 'class3'
+#     }
+#
+#     # Define edges
+#     edges = [
+#         ('A', 'B', 'type1'), ('B', 'C', 'type1'), ('C', 'D', 'type2'),
+#         ('D', 'E', 'type2'), ('E', 'F', 'type3'), ('F', 'A', 'type3'),
+#         ('G', 'H', 'type1'), ('H', 'I', 'type2'), ('I', 'G', 'type3'),
+#         ('J', 'K', 'type1'), ('K', 'L', 'type2'), ('L', 'J', 'type3')
+#     ]
+#
+#     # Define node shapes and colors
+#     node_shapes = {'class1': 'o', 'class2': 's', 'class3': '^'}
+#     node_colors = {'class1': 'skyblue', 'class2': 'lightgreen', 'class3': 'salmon'}
+#
+#     # Define edge colors and styles
+#     edge_colors = {'type1': 'red', 'type2': 'blue', 'type3': 'green'}
+#     edge_styles = {'type1': '->', 'type2': '-[', 'type3': '-|>'}
 
 
 def color_connected_components(G):

@@ -3,7 +3,6 @@ import random
 import time
 from tqdm.notebook import tqdm
 from collections.abc import Iterable
-from index_set import IndexSet
 
 
 class Simulation:
@@ -179,7 +178,15 @@ class FieldOp:
         assert op_type in ('hat', 'bar', 'check', 'tilde')
         self.op_type = op_type
         self.name = f'{self.field.name}_{self.op_type}'
-        self.index_dim = self.field.index_dim
+
+    # def kills_state(self, index):
+    #     index = self.field.validate_index(index)
+    #     if self.op_type in ('hat', 'tilde'):
+    #         return index in self.field.indices
+    #     elif self.op_type in ('check', 'bar'):
+    #         return index not in self.field.indices
+    #     else:
+    #         assert False, f'self.op_type = {self.op_type} is invalid'
 
     def apply(self, index):
         index = self.field.validate_index(index)
@@ -200,6 +207,14 @@ class FieldOp:
             case 'tilde':
                 assert index not in self.field.indices, \
                     f'Applying {self.name} with index {index} kills state.'
+
+
+    # def get_eligible_indices(self):
+    #     if self.op_type in ('hat','tilde'):
+    #         return 'only', self.field.indices
+    #     else:
+    #         return 'except', self.field.indices
+        
 
     def get_conjugate_op(self):
 
@@ -558,6 +573,106 @@ class HeterotypicInteractionAnnihilationRule(Rule):
             self.eligible_index = None
 
 
+# ## Ideally, we can ONLY specify a set of rules, and these will auto-generate the fock_space
+
+# class ParticleRule(Rule):
+#     def __init__(self, name, rate, spec_str, fock_space):
+#         """
+#         Parameters
+#         ----------
+#         name: (str)
+#         rate: (float)
+#         spec_string: (str)
+
+#         Example: 
+#         spec_str = 'A_hat_i a_tilde_i b_tilde_i'
+#         """
+
+#         # Fill out field_ops list
+#         field_ops = []
+#         for word in spec_str.split(' '):
+
+#             # Split word 
+#             field_name, op_type, index_str = word.split('_')
+
+#             # Make sure each field has only one index
+#             assert len(index_str)==1
+
+#             # If field is present in fock space, use that
+#             if field_name in fock_space.field_dict.keys():
+#                 field = fock_space.field_dict[field_name]
+
+#             # Otherwise create new field and register in fock spack
+#             else:
+#                 field = Field(name=field_name, index_dim=1)
+#                 fock_space.add_field(field)
+
+#             # Create and store operator
+#             field_ops.append(FieldOp(field, op_type=op_type))
+
+#         # Call superclass constructor with field ops, etc
+#         super().__init__(name=name,
+#                          rate=rate,
+#                          field_ops=field_ops,
+#                          index_dim=1,
+#                          index_spec=[0] * len(field_ops))
+        
+
+#     def compute_eligible_indices(self):
+
+#         # Hat operators
+#         hat_ops = [op for op in self.field_ops if op.op_type == 'hat']
+#         if len(hat_ops) > 0:
+#             all_hat_indices = set.union(*[set(i[0] for i in op.field.indices) for op in hat_ops])
+#         else:
+#             all_hat_indices = set([])
+
+#         # Tilde operators
+#         tilde_ops = [op for op in self.field_ops if op.op_type == 'tilde']
+#         if len(tilde_ops) > 0:
+#             all_tilde_indices = set.union(*[set(i[0] for i in op.field.indices) for op in tilde_ops])
+#         else:
+#             all_tilde_indices = set([])
+
+#         # Bar operators
+#         bar_ops = [op for op in self.field_ops if op.op_type == 'bar']
+#         if len(bar_ops) > 0:    
+#             shared_bar_indices = set.intersection(*[set(i[0] for i in op.field.indices) for op in bar_ops])
+#         else:
+#             shared_bar_indices = set([])
+
+#         # Check operators
+#         check_ops = [op for op in self.field_ops if op.op_type == 'check']
+#         if len(check_ops) > 0:  
+#             shared_check_indices = set.intersection(*[set(i[0] for i in op.field.indices) for op in check_ops])
+#         else:
+#             shared_check_indices = set([])
+
+#         # Get conditioning indices
+#         conditioning_indices = shared_bar_indices | shared_check_indices
+
+#         # Get inelligible indices
+#         inelligible_indices = all_hat_indices | all_tilde_indices
+
+#         # If there are no conditioning indices, we can choose an arbitrary 
+#         # index that is not inelligible
+#         if len(conditioning_indices)==0:
+#             if len(inelligible_indices) > 0:
+#                 self.eligible_index = max(inelligible_indices) + 1
+#             else:
+#                 self.eligible_index = 0
+#             self.num_eligible_indices = np.inf
+#             self.eligible_rate = self.rate 
+
+#         # Alternative, if there are conditioning indices, we can choose an 
+#         # index that is in the conditioning set and not inelligible
+#         else:
+#             eligible_indices = conditioning_indices - inelligible_indices
+#             self.eligible_index = random.choice(list(eligible_indices))
+#             self.num_eligible_indices = len(eligible_indices)
+#             self.eligible_rate = self.rate * self.num_eligible_indices
+            
+
 class Rule2:
     def __init__(self, name, rate, spec_str, fock_space):
         """
@@ -598,7 +713,7 @@ class Rule2:
             if field_name in fock_space.field_dict.keys():
                 field = fock_space.field_dict[field_name]
             else:
-                field = Field(name=field_name, index_dim=len(index_str))
+                field = Field(name=field_name, index_dim=1)
                 fock_space.add_field(field)
 
             # Iterate over indices in index_str
@@ -644,10 +759,10 @@ class Rule2:
                                   for op in self.field_ops])
         
         # Create conjugate rule
-        conjugate_rule = self.__class__(name=name,
-                                        rate=rate,
-                                        spec_str=conj_spec_str,
-                                        fock_space=self.fock_space)
+        conjugate_rule = Rule2(name=name,
+                               rate=name,
+                               spec_str=conj_spec_str,
+                               fock_space=self.fock_space)
 
         return conjugate_rule
 
@@ -680,43 +795,65 @@ class Rule2:
     def apply(self):
         assert not (self.eligible_index is None), f'rule {self.name} is not eligible'
         self.apply_to_index(self.eligible_index)
+
+
+    # to compute eligible indices, we first compute eligible indices for each
+    # individual index, then for pair of indices.
+
+    # def compute_eligible_indices(self):
+
+    #     # Hat operators
+    #     hat_ops = [op for op in self.field_ops if op.op_type == 'hat']
+    #     if len(hat_ops) > 0:
+    #         all_hat_indices = set.union(*[set(i[0] for i in op.field.indices) for op in hat_ops])
+    #     else:
+    #         all_hat_indices = set([])
+
+    #     # Tilde operators
+    #     tilde_ops = [op for op in self.field_ops if op.op_type == 'tilde']
+    #     if len(tilde_ops) > 0:
+    #         all_tilde_indices = set.union(*[set(i[0] for i in op.field.indices) for op in tilde_ops])
+    #     else:
+    #         all_tilde_indices = set([])
+
+    #     # Bar operators
+    #     bar_ops = [op for op in self.field_ops if op.op_type == 'bar']
+    #     if len(bar_ops) > 0:    
+    #         shared_bar_indices = set.intersection(*[set(i[0] for i in op.field.indices) for op in bar_ops])
+    #     else:
+    #         shared_bar_indices = set([])
+
+    #     # Check operators
+    #     check_ops = [op for op in self.field_ops if op.op_type == 'check']
+    #     if len(check_ops) > 0:  
+    #         shared_check_indices = set.intersection(*[set(i[0] for i in op.field.indices) for op in check_ops])
+    #     else:
+    #         shared_check_indices = set([])
+
+    #     # Get conditioning indices
+    #     conditioning_indices = shared_bar_indices | shared_check_indices
+
+    #     # Get inelligible indices
+    #     inelligible_indices = all_hat_indices | all_tilde_indices
+
+    #     # If there are no conditioning indices, we can choose an arbitrary 
+    #     # index that is not inelligible
+    #     if len(conditioning_indices)==0:
+    #         if len(inelligible_indices) > 0:
+    #             self.eligible_index = max(inelligible_indices) + 1
+    #         else:
+    #             self.eligible_index = 0
+    #         self.num_eligible_indices = np.inf
+    #         self.eligible_rate = self.rate 
+
+    #     # Alternative, if there are conditioning indices, we can choose an 
+    #     # index that is in the conditioning set and not inelligible
+    #     else:
+    #         eligible_indices = conditioning_indices - inelligible_indices
+    #         self.eligible_index = random.choice(list(eligible_indices))
+    #         self.num_eligible_indices = len(eligible_indices)
+    #         self.eligible_rate = self.rate * self.num_eligible_indices
             
-
-def _compute_eligible_indices(ops, index_dim):
-    """
-    Compute eligible indices from a list of field operators.
-
-    This function calculates the set of eligible indices by intersecting the
-    eligible indices of each field operator. For 'hat' and 'tilde' operators,
-    the eligible indices are the complement of the field's indices.
-
-    Args:
-        ops (list): A list of field operators.
-
-    Returns:
-        IndexSet: An IndexSet object representing the eligible indices.
-
-    Note:
-        This function assumes that all operators have index dimension is 1.
-    """
-
-    # Make sure that all ops have the correct index dimension
-    for op in ops:
-        assert op.index_dim == index_dim, f'Operator {op.name} has index dimension {op.index_dim}; expected {index_dim}'
-
-    # Initialize eligible indices to all indices
-    eligible_indices = IndexSet(elements=[], is_complement=True, index_dim=index_dim)
-
-    # Intersect eligible indices with those of each field op
-    for op in ops:
-
-        # Compute eligible indices for op
-        is_complement = op.op_type in ['hat', 'tilde']
-        eligible_indices &= IndexSet(elements=op.field.indices, 
-                                        is_complement=is_complement, 
-                                        index_dim=index_dim)
-    
-    return eligible_indices
 
 
 class ParticleRule(Rule2):
@@ -738,164 +875,72 @@ class ParticleRule(Rule2):
         # Set no index constraint
         self.index_constraint = None
 
-        # Check that index dimension is 1
         assert self.index_dim == 1, 'Particle rule must have a single index'
         
 
-    # Compute and sample eligible indices
     def compute_eligible_indices(self):
 
-        # Compute eligible indices
-        self.eligible_indices = _compute_eligible_indices(ops=self.field_ops, index_dim=1)
-
-        # Get eligible index
-        self.eligible_index = self.eligible_indices.sample_index()
-
-        # Get number of eligible indices
-        if self.eligible_index is None:
-            self.num_eligible_indices = 0
+        # Hat operators
+        hat_ops = [op for op in self.field_ops if op.op_type == 'hat']
+        if len(hat_ops) > 0:
+            all_hat_indices = set.union(*[set(i[0] for i in op.field.indices) for op in hat_ops])
         else:
-            self.num_eligible_indices = self.eligible_indices.get_set_size()
+            all_hat_indices = set([])
 
-        # Get eligible rate
-        if self.num_eligible_indices == np.inf:
-            self.eligible_rate = self.rate
+        # Tilde operators
+        tilde_ops = [op for op in self.field_ops if op.op_type == 'tilde']
+        if len(tilde_ops) > 0:
+            all_tilde_indices = set.union(*[set(i[0] for i in op.field.indices) for op in tilde_ops])
         else:
+            all_tilde_indices = set([])
+
+        # Bar operators
+        bar_ops = [op for op in self.field_ops if op.op_type == 'bar']
+        if len(bar_ops) > 0:    
+            shared_bar_indices = set.intersection(*[set(i[0] for i in op.field.indices) for op in bar_ops])
+        else:
+            shared_bar_indices = set([])
+
+        # Check operators
+        check_ops = [op for op in self.field_ops if op.op_type == 'check']
+        if len(check_ops) > 0:  
+            shared_check_indices = set.intersection(*[set(i[0] for i in op.field.indices) for op in check_ops])
+        else:
+            shared_check_indices = set([])
+
+        # Get conditioning indices
+        conditioning_indices = shared_bar_indices | shared_check_indices
+
+        # Get inelligible indices
+        inelligible_indices = all_hat_indices | all_tilde_indices
+
+        # If there are no conditioning indices, we can choose an arbitrary 
+        # index that is not inelligible
+        if len(conditioning_indices)==0:
+            if len(inelligible_indices) > 0:
+                self.eligible_index = max(inelligible_indices) + 1
+            else:
+                self.eligible_index = 0
+            self.num_eligible_indices = np.inf
+            self.eligible_rate = self.rate 
+
+        # Alternative, if there are conditioning indices, we can choose an 
+        # index that is in the conditioning set and not inelligible
+        else:
+            eligible_indices = conditioning_indices - inelligible_indices
+            self.eligible_index = random.choice(list(eligible_indices))
+            self.num_eligible_indices = len(eligible_indices)
             self.eligible_rate = self.rate * self.num_eligible_indices
+            
 
-
-class AsymmetricInteractionRule(Rule2):
+class InteractionRule(Rule2):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Set no index constraint
         self.index_constraint = None
 
-        # Check that index dimension is 2
         assert self.index_dim == 2, 'Interaction rule must have two indices'
-
-        # Check that only one op has index_dim 2
-        index_dim_2_ops = [op for op in self.field_ops if op.index_dim == 2]
-        assert len(index_dim_2_ops) == 1, \
-            f'Interaction rule must have exactly one operator with two indices; {[op.name for op in index_dim_2_ops]} all have index dimension 2'    
-
-        # Check that the index_dim 2 op is a hat or check operator
-        index_dim_2_op = index_dim_2_ops[0]
-        assert index_dim_2_op.op_type in ['hat', 'check'], 'Interaction op must be a hat or check operator'
-
-    def compute_eligible_indices(self):
-
-        # Get pos0 ops and eligible indices
-        pos0_ops = [op for op in self.field_ops if op.index_dim == 1 and op.index_spec[0] == 0]
-        pos0_ixs = _compute_eligible_indices(ops=pos0_ops, index_dim=1  )
-
-        # Get pos1 ops and eligible indices
-        pos1_ops = [op for op in self.field_ops if op.index_dim == 1 and op.index_spec[0] == 1]
-        pos1_ixs = _compute_eligible_indices(ops=pos1_ops, index_dim=1)
-
-        # Get pair op and eligible indices
-        pair_op = [op for op in self.field_ops if op.index_dim == 2][0]
-        pair_ixs = _compute_eligible_indices(ops=[pair_op], index_dim=2)
-
-        # Sample eligible indices if op_type is hat
-        if pair_op.op_type == 'hat':
-            pos0_index = pos0_ixs.sample_index()
-            pos1_index = pos1_ixs.sample_index()
-            if pos0_index is not None and pos1_index is not None:
-                self.eligible_index = (pos0_index[0], pos1_index[0])
-                self.num_eligible_indices = pos0_ixs.get_set_size() * pos1_ixs.get_set_size()
-            else:
-                self.eligible_index = None
-                self.num_eligible_indices = 0
-
-        # Sample eligible indices if op_type is check
-        elif pair_op.op_type == 'check':
-
-            # Get eligible pairs of indices
-            pair_ixs_set = set(p for p in pair_ixs.elements if (p[0],) in pos0_ixs and (p[1],) in pos1_ixs)
-
-            # Sample eligible index if there are any
-            if len(pair_ixs_set) > 0:
-                self.eligible_index = random.choice(list(pair_ixs_set))
-                self.num_eligible_indices = len(pair_ixs_set)   
-
-            # Otherwise no eligible indices
-            else:
-                self.eligible_index = None
-                self.num_eligible_indices = 0
-
-        # Get eligible rate
-        if self.num_eligible_indices == np.inf:
-            self.eligible_rate = self.rate
-        else:
-            self.eligible_rate = self.rate * self.num_eligible_indices
-
         
-        
-class SymmetricInteractionRule(Rule2):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Set no index constraint
-        self.index_constraint = None
-
-        # Check that index dimension is 2
-        assert self.index_dim == 2, 'Interaction rule must have two indices'
-
-        # Check that only one op has index_dim 2
-        index_dim_2_ops = [op for op in self.field_ops if op.index_dim == 2]
-        assert len(index_dim_2_ops) == 1, \
-            f'Interaction rule must have exactly one operator with two indices; {[op.name for op in index_dim_2_ops]} all have index dimension 2'    
-
-        # Check that the index_dim 2 op is a hat or check operator
-        index_dim_2_op = index_dim_2_ops[0]
-        assert index_dim_2_op.op_type in ['hat', 'check'], 'Interaction op must be a hat or check operator'
-
     def compute_eligible_indices(self):
-
-        # Get eligible particle indices
-        particle_ops = [op for op in self.field_ops if op.index_dim == 1]
-        particle_eligible_indices = _compute_eligible_indices(ops=particle_ops, index_dim=1) 
-
-        # Get eligible interaction indices
-        pair_op = [op for op in self.field_ops if op.index_dim == 2][0]
-        interaction_eligible_indices = _compute_eligible_indices(ops=[pair_op], index_dim=2)
-
-        # Sample eligible indices if op_type is hat
-        if pair_op.op_type == 'hat':
-            two_particle_indices = particle_eligible_indices.sample_indices(num_indices=2)
-            if two_particle_indices is not None:
-                ix1, ix2 = two_particle_indices
-                self.eligible_index = (ix1[0], ix2[0]) if ix1[0] < ix2[0] else (ix2[0], ix1[0])
-                n = particle_eligible_indices.get_set_size()
-                self.num_eligible_indices = n * (n-1) / 2
-            else:
-                self.eligible_index = None
-                self.num_eligible_indices = 0
-
-        # # Sample eligible indices if op_type is check
-        # elif pair_op.op_type == 'check':
-        #     self.eligible_index = interaction_eligible_indices.sample_index()
-        #     self.num_eligible_indices = interaction_eligible_indices.get_set_size()
-
-        # Sample eligible indices if op_type is check
-        elif pair_op.op_type == 'check':
-
-            # Get eligible pairs of indices
-            pair_ixs_set = set(p for p in interaction_eligible_indices.elements if (p[0],) in particle_eligible_indices and (p[1],) in particle_eligible_indices)
-
-            # Sample eligible index if there are any
-            if len(pair_ixs_set) > 0:
-                self.eligible_index = random.choice(list(pair_ixs_set))
-                self.num_eligible_indices = len(pair_ixs_set)   
-
-            # Otherwise no eligible indices
-            else:
-                self.eligible_index = None
-                self.num_eligible_indices = 0
-
-        # Get eligible rate
-        if self.num_eligible_indices == np.inf:
-            self.eligible_rate = self.rate
-        else:
-            self.eligible_rate = self.rate * self.num_eligible_indices
+        pass

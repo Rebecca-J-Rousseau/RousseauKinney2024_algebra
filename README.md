@@ -4,7 +4,7 @@ This repository includes all simulation code, results, and figures generated for
 
 ## Layout
 ---
-The repository is organized into three directories:
+The repository is organized into three directories: 
 
 ## `simulationcode`
 This directory contains all Jupyter notebooks used to simulate each example system:

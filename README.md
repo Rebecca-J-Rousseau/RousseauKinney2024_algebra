@@ -1,6 +1,11 @@
 # Deterministic and stochastic simulations for non-equilibrium systems
 
-This repository includes all simulation code, results, and figures generated for *Algebraic and diagrammatic methods for the rule-based modeling of multiparticle complexes* (2024) by Rebecca J. Rousseau and Justin B. Kinney. The contents of the repository pertain specifically to Figs. 7 and 9 in that paper, and demonstrate how to apply the algebraic formalism developed in the paper to deterministic and stochastic simulations for a number of non-equilibrium systems.
+This repository contains supporting code for:
+
+- Rousseau RJ, Kinney JB. Algebraic and diagrammatic methods for the rule-based modeling of multiparticle complexes. arXiv:2409.01529 [physics.bio-ph] 
+https://doi.org/10.48550/arXiv.2409.01529 (2024), PRX Life [in press] (2025). 
+
+The contents of the repository pertain specifically to Figs. 7 and 9 in that paper, and demonstrate how to apply the algebraic formalism developed in the paper to deterministic and stochastic simulations for a number of non-equilibrium systems.
 
 ## Layout
 ---

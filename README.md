@@ -2,8 +2,9 @@
 
 This repository contains supporting code for:
 
-- Rousseau RJ, Kinney JB. Algebraic and diagrammatic methods for the rule-based modeling of multiparticle complexes. arXiv:2409.01529 [physics.bio-ph] 
-https://doi.org/10.48550/arXiv.2409.01529 (2024), PRX Life [in press] (2025). 
+- Rousseau RJ, Kinney JB. Algebraic and diagrammatic methods for the rule-based modeling of multiparticle complexes. *PRX Life* **3**, 023004 (2025). https://doi.org/10.1103/PRXLife.3.023004
+
+  - Preprint found at arXiv:2409.01529 [physics.bio-ph] https://doi.org/10.48550/arXiv.2409.01529 (2024)
 
 The contents of the repository pertain specifically to Figs. 7 and 9 in that paper, and demonstrate how to apply the algebraic formalism developed in the paper to deterministic and stochastic simulations for a number of non-equilibrium systems.
 

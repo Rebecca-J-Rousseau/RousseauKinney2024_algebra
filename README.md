@@ -29,7 +29,7 @@ This directory contains all Jupyter notebooks used to simulate each example syst
     * Linear heteropolymer
     * Branched homopolymer
 
-All stochastic simulations use a Gillespie algorithm detailed in Rousseau and Kinney (2024) and coded in `gillespie.py`.
+All stochastic simulations use a Gillespie algorithm detailed in Rousseau and Kinney (2025) and coded in `gillespie.py`.
 
 Each .ipynb notebook outputs .csv files containing the vectors of times, averages, and standard deviations for various complexes, and these outputs are saved into the `simulationdata` directory.
 
